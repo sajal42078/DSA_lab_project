@@ -1,0 +1,103 @@
+#include <stdio.h>
+#include <stdlib.h>
+
+struct Process {
+    int pid;
+    int burst_time;
+    int remaining_time; 
+};
+
+void swap(struct Process *a, struct Process *b) {
+    struct Process temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void heapify(struct Process pq[], int n, int i) {
+    int smallest = i;
+    int left = 2 * i + 1;
+    int right = 2 * i + 2;
+
+    if (left < n && pq[left].remaining_time < pq[smallest].remaining_time)
+        smallest = left;
+
+    if (right < n && pq[right].remaining_time < pq[smallest].remaining_time)
+        smallest = right;
+
+    if (smallest != i) {
+        swap(&pq[i], &pq[smallest]);
+        heapify(pq, n, smallest);
+    }
+}
+
+void insert(struct Process pq[], int *size, struct Process new_process) {
+    int i = (*size)++;
+    pq[i] = new_process;
+    while (i != 0 && pq[(i - 1) / 2].remaining_time > pq[i].remaining_time) {
+        swap(&pq[i], &pq[(i - 1) / 2]);
+        i = (i - 1) / 2;
+    }
+}
+
+struct Process extractMin(struct Process pq[], int *size) {
+    struct Process min = pq[0];
+    pq[0] = pq[--(*size)];
+    heapify(pq, *size, 0);
+    return min;
+}
+
+void roundRobin(struct Process processes[], int n, int quantum) {
+    struct Process pq[n];
+    int size = 0;
+
+    for (int i = 0; i < n; i++) {
+        insert(pq, &size, processes[i]);
+    }
+
+    int time = 0, completed = 0;
+    float total_waiting_time = 0, total_turnaround_time = 0;
+
+    while (completed < n) {
+        if (size == 0) break;
+        struct Process p = extractMin(pq, &size);
+
+        if (p.remaining_time > quantum) {
+            time += quantum;
+            p.remaining_time -= quantum;
+            insert(pq, &size, p);
+        } else {
+            time += p.remaining_time;
+            total_waiting_time += time - p.burst_time;
+            total_turnaround_time += time;
+            p.remaining_time = 0;
+            completed++;
+        }
+
+        printf("Time %d: Process %d executed\n", time, p.pid);
+    }
+
+    printf("\nAverage Waiting Time: %.2f\n", total_waiting_time / n);
+    printf("Average Turnaround Time: %.2f\n", total_turnaround_time / n);
+}
+
+int main() {
+    int n, quantum;
+
+    printf("Enter the number of processes: ");
+    scanf("%d", &n);
+
+    struct Process processes[n];
+
+    for (int i = 0; i < n; i++) {
+        printf("Enter Process ID and Burst Time for Process %d: ", i + 1);
+        scanf("%d %d", &processes[i].pid, &processes[i].burst_time);
+        processes[i].remaining_time = processes[i].burst_time;
+    }
+
+    printf("Enter Time Quantum: ");
+    scanf("%d", &quantum);
+
+    roundRobin(processes, n, quantum);
+
+    return 0;
+}
